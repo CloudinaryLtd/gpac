@@ -112,8 +112,16 @@ GF_Err colr_Read(GF_Box *s, GF_BitStream *bs)
 	} else {
 		p->opaque = gf_malloc(sizeof(u8)*(size_t)p->size);
 		p->opaque_size = (u32) p->size;
-		GF_LOG(GF_LOG_INFO, GF_LOG_CONTAINER, ("[iso file] %s colour profile not supported, not parsing\n", gf_4cc_to_str(p->colour_type) ));
 		gf_bs_read_data(bs, (char *) p->opaque, p->opaque_size);
+                if (p->colour_type == GF_ISOM_SUBTYPE_PROF) {
+                    // quick and dirty hack to dump the blob
+		    GF_LOG(GF_LOG_INFO, GF_LOG_CONTAINER, ("[iso file] writing ICC colour profile to file profile.icc\n" ));
+                    FILE *fp = fopen("profile.icc","wb");
+                    fwrite(p->opaque, p->opaque_size, 1, fp);
+                    fclose(fp);
+                } else {
+		    GF_LOG(GF_LOG_INFO, GF_LOG_CONTAINER, ("[iso file] %s colour profile not supported, not parsing\n", gf_4cc_to_str(p->colour_type) ));
+                }
 	}
 	return GF_OK;
 }
