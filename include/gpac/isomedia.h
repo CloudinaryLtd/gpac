@@ -2472,6 +2472,7 @@ typedef struct
 	GF_TileItemMode tile_mode;
 	u32 single_tile_number;
 	double time;
+	char iccPath[GF_MAX_PATH];
 } GF_ImageItemProperties;
 
 GF_Err gf_isom_meta_get_next_item_id(GF_ISOFile *file, Bool root_meta, u32 track_num, u32 *item_id);

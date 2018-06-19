@@ -712,7 +712,7 @@ static void meta_add_item_property_association(GF_ItemPropertyAssociationBox *ip
 	gf_list_add(found_entry->essential, ess);
 	gf_list_add(found_entry->property_index, index);
 }
-
+	
 static void meta_process_image_properties(GF_MetaBox *meta, u32 item_ID, GF_ImageItemProperties *image_props) {
 	GF_ImageItemProperties searchprop;
 	GF_ItemPropertyAssociationBox *ipma;
@@ -730,22 +730,31 @@ static void meta_process_image_properties(GF_MetaBox *meta, u32 item_ID, GF_Imag
 		ipco = meta->item_props->property_container;
 		ipma = meta->item_props->property_association;
 	}
-        // quick and dirty hack to inject a color profile
-        FILE *fp = fopen("profile.icc","rb");
-        if (fp) {
-                GF_LOG(GF_LOG_INFO, GF_LOG_CONTAINER, ("[iso file] reading ICC colour profile from file profile.icc\n" ));
-                GF_ColourInformationBox *colr = (GF_ColourInformationBox *)gf_isom_box_new(GF_ISOM_BOX_TYPE_COLR);
-                colr->colour_type = GF_ISOM_SUBTYPE_PROF;
-                fseek(fp,0,SEEK_END);
-                colr->opaque_size = ftell(fp);
-                fseek(fp,0,SEEK_SET);
-                colr->opaque = malloc(colr->opaque_size);
-                fread(colr->opaque,colr->opaque_size,1,fp);
-                fclose(fp);
-                gf_list_add(ipco->other_boxes, colr);
-                prop_index = gf_list_count(ipco->other_boxes) - 1;
-                meta_add_item_property_association(ipma, item_ID, prop_index + 1, GF_FALSE);
-        }
+
+	if (strlen(image_props->iccPath) > 0) {
+		FILE *fp = gf_fopen(image_props->iccPath, "rb");
+		if (fp) {
+			GF_LOG(GF_LOG_INFO, GF_LOG_CONTAINER, ("[iso file] reading ICC colour profile from file %s\n", &image_props->iccPath));
+			GF_ColourInformationBox *colr = (GF_ColourInformationBox *)gf_isom_box_new(GF_ISOM_BOX_TYPE_COLR);
+			colr->colour_type = GF_ISOM_SUBTYPE_PROF;
+			fseek(fp,0,SEEK_END);
+			colr->opaque_size = ftell(fp);
+			fseek(fp,0,SEEK_SET);
+			colr->opaque = malloc(colr->opaque_size);
+			size_t read = gf_fread(colr->opaque, 1, colr->opaque_size, fp);
+			fclose(fp);
+			if (ferror(fp) || read != colr->opaque_size) {
+				GF_LOG(GF_LOG_ERROR, GF_LOG_CONTAINER, ("[iso file] Error reading ICC colour profile from file %s\n", &image_props->iccPath));
+			} else {
+				gf_list_add(ipco->other_boxes, colr);
+				prop_index = gf_list_count(ipco->other_boxes) - 1;
+				meta_add_item_property_association(ipma, item_ID, prop_index + 1, GF_FALSE);
+			}
+		} else {
+			GF_LOG(GF_LOG_ERROR, GF_LOG_CONTAINER, ("[iso file] Error opening ICC colour profile file at %s\n", &image_props->iccPath));
+		}
+	}
+
 	if (image_props->width || image_props->height) {
 		searchprop.width = image_props->width;
 		searchprop.height = image_props->height;
